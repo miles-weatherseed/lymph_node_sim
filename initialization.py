@@ -55,7 +55,6 @@ numRepeats = DEFAULT_NUM_REPEATS
 antigenDecayRate = DEFAULT_ANTIGEN_DECAY_RATE
 cogAgOnArrival = cogAgInDermis*np.exp(-antigenDecayRate*firstDCArrival)
 introRate = numDCells/DCArrivalDuration
-
 noTimeLimit = False
 animateStatus = True
 

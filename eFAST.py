@@ -10,20 +10,21 @@ import numpy as np
 # n = T cell act threshold - DEFAULT 20
 # P = first DC arrival - DEFAULT 1080 mins
 # p = DC arrival duration - DEFAULT 360
-#
+# R3 = LN radius cubed - DEFAULT 125000000
+# V = T-cell velocity - DEFAULT 2.26567314561
 
 problem = {
     'num_vars': 9,
     'names': ['b3', 'D', 'F', 'f', 'n', 'P', 'p', 'R3', 'V'],
-    'bounds': [[5, 40],
-               [200, 1000],
-               [15, 40],
-               [],
-               [],
-               [],
-               [],
-               [],
-               []]
+    'bounds': [[4000, 16000],
+               [360, 1440],
+               [12.5, 50],
+               [1.5, 6],
+               [10, 40],
+               [540, 2160],
+               [180, 720],
+               [62500000, 250000000],
+               [1.1328, 4.533]]
 }
 
 param_values = saltelli.sample(problem, 100)

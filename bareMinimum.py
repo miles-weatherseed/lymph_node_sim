@@ -284,6 +284,7 @@ for rep in range(numRepeats):
 
     # end of simulation, time to plot and animate the outcome
 
+    print(this_numActivated)
     if not animateStatus:
         PLOT_ANIMATION(dCellList, tCellsX, tCellsY, tCellsZ, arrivalTimes)
 
