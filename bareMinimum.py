@@ -101,9 +101,6 @@ class tCell:
     def increment_num_interactions(self):
         return self.__interactions + 1
 
-# create list of arrival times of the DCs
-
-arrivalTimes = np.arange(firstDCArrival, firstDCArrival + DCArrivalDuration, DCArrivalDuration/numDCells)
 
 # create probabilities table if it doesn't already exist
 
@@ -155,20 +152,20 @@ for rep in range(numRepeats):
 
     # let's make some containers to hold the positions of our T Cells at each time step
 
-    tCellsX = np.zeros((numTCells,int(numTimeSteps*timeStep - firstDCArrival)))
-    tCellsY = np.zeros((numTCells,int(numTimeSteps*timeStep - firstDCArrival)))
-    tCellsZ = np.zeros((numTCells,int(numTimeSteps*timeStep - firstDCArrival)))
+    tCellsX = np.zeros((numTCells,int(numTimeSteps)))
+    tCellsY = np.zeros((numTCells,int(numTimeSteps)))
+    tCellsZ = np.zeros((numTCells,int(numTimeSteps)))
 
     # Time to start simulating the movement of the tCells
 
-    for time in range(int(firstDCArrival/timeStep), int(numTimeSteps)):
+    for time in range(int(numTimeSteps)):
         # convert time to minutes
         mins = timeStep * time
         # check if we should be introducing a dendritic cell
-        if (mins <= firstDCArrival+DCArrivalDuration) and (np.in1d(mins, arrivalTimes)):
+        if (mins < DCArrivalDuration) and (len(dCellList) < mins*introRate + 1):
             dCellList.append(dCell(-1 * np.ones(3)))
             PLACE_DC_ON_GRID(len(dCellList)-1, dCellList, occupiedPositions)
-            dCellList[-1].cogAgRatio = cogAgOnArrival*np.exp(-antigenDecayRate*(time-int(firstDCArrival/timeStep))*timeStep)
+            dCellList[-1].cogAgRatio = cogAgOnArrival*np.exp(-antigenDecayRate*time*timeStep)
             dCellList[-1].timeAntigenCountLastUpdated = time
         # clear  cellsToDelete from previous step
         cellsToDelete = []
@@ -271,17 +268,17 @@ for rep in range(numRepeats):
             tCellList[tCellNum].posn = new_posn_vec
             # only want to update this every minute
             if mins%1==0:
-                tCellsX[tCellNum, int(mins - firstDCArrival)] = new_posn_vec[0]
-                tCellsY[tCellNum, int(mins - firstDCArrival)] = new_posn_vec[1]
-                tCellsZ[tCellNum, int(mins - firstDCArrival)] = new_posn_vec[2]
+                tCellsX[tCellNum, int(mins)] = new_posn_vec[0]
+                tCellsY[tCellNum, int(mins)] = new_posn_vec[1]
+                tCellsZ[tCellNum, int(mins)] = new_posn_vec[2]
 
         # end of t cell loop. Just need to delete the cells which successfully interacted
         for i in range(len(cellsToDelete)):
             cellNo = cellsToDelete[i]
             # remove from cellMovementOrder and fix them in their final location for rest of animation
-            tCellsX[cellNo, int(mins - firstDCArrival):] = tCellList[cellNo].posn[0]
-            tCellsY[cellNo, int(mins - firstDCArrival):] = tCellList[cellNo].posn[1]
-            tCellsZ[cellNo, int(mins - firstDCArrival):] = tCellList[cellNo].posn[2]
+            tCellsX[cellNo, int(mins):] = tCellList[cellNo].posn[0]
+            tCellsY[cellNo, int(mins):] = tCellList[cellNo].posn[1]
+            tCellsZ[cellNo, int(mins):] = tCellList[cellNo].posn[2]
             cellMovementOrder = np.delete(cellMovementOrder, np.where(cellMovementOrder == cellNo)[0][0])
 
 
