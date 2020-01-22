@@ -1,106 +1,7 @@
-from initialization import *
-from minimumFunctions import *
+from parameters import *
+from classesAndFunctions import *
 import numpy as np
-
-
-class dCell:
-
-    def __init__(self, posn):
-
-        self.posn = posn
-        self.cogAgRatio = 0
-        self.probActivation = 0
-        self.timeAntigenCountLastUpdated = 0
-
-    @property
-    def posn(self):
-        return self.__posn
-
-    @posn.setter
-    def posn(self, value):
-        self.__posn = value
-
-    @property
-    def cogAgRatio(self):
-        return self.__cogAgRatio
-
-    @cogAgRatio.setter
-    def cogAgRatio(self, value):
-        self.__cogAgRatio = value
-
-    @property
-    def probActivation(self):
-        return self.__probActivation
-
-    @probActivation.setter
-    def probActivation(self, value):
-        self.__probActivation = value
-
-    @property
-    def timeAntigenCountLastUpdated(self):
-        return self.__timeAntigenCountLastUpdated
-
-    @timeAntigenCountLastUpdated.setter
-    def timeAntigenCountLastUpdated(self, value):
-        self.__timeAntigenCountLastUpdated = value
-
-    @property
-    def cannot_activate_t_cells(self):
-        return (self.probActivation<PROBABILITY_TOLERANCE)
-
-class tCell:
-
-    def __init__(self, posn, vel):
-        self.posn = posn
-        self.initial_posn = posn
-        self.vel = vel
-        self.failed_interaction_ID = -1
-        self.interactions = 0
-
-    @property
-    def posn(self):
-        return self.__posn
-
-    @posn.setter
-    def posn(self, value):
-        self.__posn = value
-
-    @property
-    def initial_posn(self):
-        return self.__initial_posn
-
-    @initial_posn.setter
-    def initial_posn(self, value):
-        self.__initial_posn = value
-
-    @property
-    def vel(self):
-        return self.__vel
-
-    @vel.setter
-    def vel(self, value):
-        self.__vel = value
-
-    @property
-    def failed_interaction_ID(self):
-        return self.__failed_interaction_ID
-
-    @failed_interaction_ID.setter
-    def failed_interaction_ID(self, value):
-        self.__failed_interaction_ID = value
-
-    @property
-    def interactions(self):
-        return self.__interactions
-
-    @interactions.setter
-    def interactions(self, value):
-        self.__interactions = value
-
-    @property
-    def increment_num_interactions(self):
-        return self.__interactions + 1
-
+from LNfunctions import inside_sphere, set_coordinates
 
 # create probabilities table if it doesn't already exist
 
@@ -197,7 +98,7 @@ for rep in range(numRepeats):
             freePathRemaining[tCellNum] -= dvel.dot(dvel)
 
             # check if we've left the sphere or if we've reached the end of the mean free path
-            if not INSIDE_SPHERE(new_posn_vec):
+            if not inside_sphere(new_posn_vec, radius):
                 # regenerate velocity to move t cell away from sphere surface
                 vmag = np.random.gamma(tGammaShape, tGammaScale)
                 theta = np.arccos(np.random.uniform(0,1))
@@ -229,7 +130,7 @@ for rep in range(numRepeats):
                 dCellList[dCellNum].cogAgRatio = dCellList[dCellNum].cogAgRatio*np.exp(-antigenDecayRate*(time - dCellList[dCellNum].timeAntigenCountLastUpdated)*timeStep)
                 dCellList[dCellNum].probActivation = ProbabilitiesTable[np.where(ProbabilitiesTable[:, 0]==round((1E-5)*int(dCellList[dCellNum].cogAgRatio/(1E-5)), 5))[0][0]][1]
                 dCellList[dCellNum].timeAntigenCountLastUpdated = time
-                dend_coord_vec = SET_COORDINATES(dend_vec)
+                dend_coord_vec = set_coordinates(dend_vec, radius, cellSide)
                 this_numInteractions += 1
                 if cell.increment_num_interactions==1:
                     this_numUniqueInteractions += 1
@@ -285,8 +186,6 @@ for rep in range(numRepeats):
     # end of simulation, time to plot and animate the outcome
 
     print(this_numActivated)
-    if not animateStatus:
-        PLOT_ANIMATION(dCellList, tCellsX, tCellsY, tCellsZ, arrivalTimes)
 
 print("Final outcome: ", successfulActivations, " successes from ", numRepeats, " trials")
 print("This represents a probability of success of ", round(successfulActivations/numRepeats, 5))
