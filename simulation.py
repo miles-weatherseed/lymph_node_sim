@@ -172,12 +172,10 @@ class Simulation(dCell, tCell, ProbabilitiesTable):
                 cellsToDelete = []
                 # break if we've exhausted all the tcells
                 if (len(cellMovementOrder) == 0):
-                    print("early exit at time ", mins, " minutes")
                     break
                 # check if we should even bother simulating or whether DCs have too little antigen to keep going
                 if dCellList[0].cogAgRatio * np.exp(
                         -self.antigenDecayRate * (time - dCellList[0].timeAntigenCountLastUpdated) * self.timeStep) < 0.00285:
-                    print("early exit at time ", mins, " minutes")
                     break
                 for i in range(len(cellMovementOrder)):
                     tCellNum = cellMovementOrder[i]
