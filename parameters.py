@@ -57,6 +57,7 @@ cogAgOnArrival = cogAgInDermis*np.exp(-antigenDecayRate*firstDCArrival)
 introRate = numDCells/DCArrivalDuration
 noTimeLimit = False
 animateStatus = True
+successfulActivations = 0
 
 # Intialize positions of DCs on a grid
 

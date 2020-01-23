@@ -1,9 +1,109 @@
-from initialization import *
+from parameters import *
 import hypergeometric
 import numpy as np
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
 import matplotlib.animation as animation
+from numba import jit
+from LNfunctions import inside_sphere, threed_to_1d, set_coordinates
+
+class dCell:
+
+    def __init__(self, posn):
+
+        self.posn = posn
+        self.cogAgRatio = 0
+        self.probActivation = 0
+        self.timeAntigenCountLastUpdated = 0
+
+    @property
+    def posn(self):
+        return self.__posn
+
+    @posn.setter
+    def posn(self, value):
+        self.__posn = value
+
+    @property
+    def cogAgRatio(self):
+        return self.__cogAgRatio
+
+    @cogAgRatio.setter
+    def cogAgRatio(self, value):
+        self.__cogAgRatio = value
+
+    @property
+    def probActivation(self):
+        return self.__probActivation
+
+    @probActivation.setter
+    def probActivation(self, value):
+        self.__probActivation = value
+
+    @property
+    def timeAntigenCountLastUpdated(self):
+        return self.__timeAntigenCountLastUpdated
+
+    @timeAntigenCountLastUpdated.setter
+    def timeAntigenCountLastUpdated(self, value):
+        self.__timeAntigenCountLastUpdated = value
+
+    @property
+    def cannot_activate_t_cells(self):
+        return (self.probActivation<PROBABILITY_TOLERANCE)
+
+class tCell:
+
+    def __init__(self, posn, vel):
+        self.posn = posn
+        self.initial_posn = posn
+        self.vel = vel
+        self.failed_interaction_ID = -1
+        self.interactions = 0
+
+    @property
+    def posn(self):
+        return self.__posn
+
+    @posn.setter
+    def posn(self, value):
+        self.__posn = value
+
+    @property
+    def initial_posn(self):
+        return self.__initial_posn
+
+    @initial_posn.setter
+    def initial_posn(self, value):
+        self.__initial_posn = value
+
+    @property
+    def vel(self):
+        return self.__vel
+
+    @vel.setter
+    def vel(self, value):
+        self.__vel = value
+
+    @property
+    def failed_interaction_ID(self):
+        return self.__failed_interaction_ID
+
+    @failed_interaction_ID.setter
+    def failed_interaction_ID(self, value):
+        self.__failed_interaction_ID = value
+
+    @property
+    def interactions(self):
+        return self.__interactions
+
+    @interactions.setter
+    def interactions(self, value):
+        self.__interactions = value
+
+    @property
+    def increment_num_interactions(self):
+        return self.__interactions + 1
 
 def generateLookupTable(numAntigenAttachedToDC, numAntigenInContactArea, tCellActivationThreshold):
     # first write properties of table at top so that we know that we have the right one
@@ -42,7 +142,7 @@ def PLACE_DC_ON_GRID(i, dCellList, occupiedPositions):
     while (cellStatus == False):
         # let's generate potential coordinates
         posn_vec = np.random.uniform(-1, 1, 3) * radius
-        if INSIDE_SPHERE(posn_vec):
+        if inside_sphere(posn_vec, radius):
             # we need to check it's not touching any other DCs now
             inContact = 0
             inContact = CHECK_CONTACT_WITH_DENDRITES_DC(posn_vec, inContact, dCellList, occupiedPositions)
@@ -54,18 +154,18 @@ def PLACE_DC_ON_GRID(i, dCellList, occupiedPositions):
         else:
             continue
     # better update the occupied positions list
-    coord_vec = SET_COORDINATES(posn_vec)
-    if occupiedPositions[THREED_TO_1D(coord_vec)] == 0.0:
-        occupiedPositions[THREED_TO_1D(coord_vec)] = [i]
+    coord_vec = set_coordinates(posn_vec, radius, cellSide)
+    if occupiedPositions[threed_to_1d(coord_vec, numPositions)] == 0.0:
+        occupiedPositions[threed_to_1d(coord_vec, numPositions)] = [i]
     else:
-        occupiedPositions[THREED_TO_1D(coord_vec)].append(i)
+        occupiedPositions[threed_to_1d(coord_vec, numPositions)].append(i)
 
 def PLACE_T_ON_GRID(i, tCellList, dCellList, occupiedPositions, freePathRemaining):
     cellStatus = False
     while (cellStatus == False):
         # let's generate potential coordinates
         posn_vec = np.random.uniform(-1, 1, 3) * radius
-        if INSIDE_SPHERE(posn_vec):
+        if inside_sphere(posn_vec, radius):
             # we need to check it's not touching any other DCs now
             inContact = 0
             inContact = CHECK_CONTACT_WITH_DENDRITES_T(posn_vec, inContact, dCellList, tCellList, i, occupiedPositions)
@@ -81,23 +181,10 @@ def PLACE_T_ON_GRID(i, tCellList, dCellList, occupiedPositions, freePathRemainin
         else:
             continue
 
-def INSIDE_SPHERE(vec):
-    return (vec.dot(vec) < radius**2)
-
-def SET_COORDINATES(posn_vec):
-    return np.int_((posn_vec + radius)/cellSide)
-
-def THREED_TO_1D(coord_vec):
-    return np.ravel_multi_index(coord_vec, (numPositions, numPositions, numPositions))
-
-def HAS_CONTACTED_DC(tCellNum, dCellNum, tCellList):
-    return tCellList[tCellNum].failed_interaction_ID==dCellNum
-
-
 def CHECK_CONTACT_WITH_DENDRITES_DC(posn_vec, inContact, dCellList, occupiedPositions):
-    coord_vec = SET_COORDINATES(posn_vec)
-    nearbyDCs = occupiedPositions[THREED_TO_1D(coord_vec)]
-    if nearbyDCs == 0:
+    coord_vec = set_coordinates(posn_vec, radius, cellSide)
+    nearbyDCs = occupiedPositions[threed_to_1d(coord_vec, numPositions)]
+    if isinstance(nearbyDCs, float):
         pass
     else:
         for j in nearbyDCs:
@@ -112,9 +199,9 @@ def CHECK_CONTACT_WITH_DENDRITES_DC(posn_vec, inContact, dCellList, occupiedPosi
 # this function is similar to above but also checks to see whether an interaction happens
 
 def CHECK_CONTACT_WITH_DENDRITES_T(posn_vec, inContact, dCellList, tCellList, tCellNum, occupiedPositions):
-    coord_vec = SET_COORDINATES(posn_vec)
-    nearbyDCs = occupiedPositions[THREED_TO_1D(coord_vec)]
-    if nearbyDCs == 0:
+    coord_vec = set_coordinates(posn_vec, radius, cellSide)
+    nearbyDCs = occupiedPositions[threed_to_1d(coord_vec, numPositions)]
+    if isinstance(nearbyDCs, float):
         pass
     else:
         for j in nearbyDCs:
@@ -131,9 +218,9 @@ def CHECK_CONTACT_WITH_DENDRITES_T(posn_vec, inContact, dCellList, tCellList, tC
 # function doesn't exist in original code but python isn't so slick so we must fetch them
 
 def GET_CONTACTING_DC_COORDS_AND_NUM(posn_vec, dCellList, tCellList, tCellNum, occupiedPositions):
-    coord_vec = SET_COORDINATES(posn_vec)
-    nearbyDCs = occupiedPositions[THREED_TO_1D(coord_vec)]
-    if nearbyDCs == 0:
+    coord_vec = set_coordinates(posn_vec, radius, cellSide)
+    nearbyDCs = occupiedPositions[threed_to_1d(coord_vec, numPositions)]
+    if isinstance(nearbyDCs, float):
         pass
     else:
         for j in nearbyDCs:
@@ -168,14 +255,15 @@ def REMOVE_DC_FROM_DISCRETE_GRID(dcoord_vec, dCellNum, occupiedPositions):
                 elif dcoord_vec[2] + r < 0:
                     continue
                 # now clear this particular dCellNum from the position in the occupiedPositions array
-                nearbyDCs = occupiedPositions[THREED_TO_1D(dcoord_vec + np.asarray([p, q, r]))]
+                nearbyDCs = occupiedPositions[threed_to_1d(dcoord_vec + np.asarray([p, q, r]), numPositions)]
                 nearbyDCs = np.delete(nearbyDCs, np.where(nearbyDCs==dCellNum))
-                occupiedPositions[THREED_TO_1D(dcoord_vec + np.asarray([p, q, r]))] = nearbyDCs
+                occupiedPositions[threed_to_1d(dcoord_vec + np.asarray([p, q, r]), numPositions)] = nearbyDCs
 
 # GEOMETRY
 
 # this function rotates the path of a cell that has left the spherical domain
 
+@jit
 def arbitraryAxisRotation(axX, axY, axZ, vecX, vecY, vecZ, angle):
     rotationMatrix = [[np.cos(angle) + axX*axX*(1-np.cos(angle)), axX*axY*(1-np.cos(angle))-axZ*np.sin(angle), axX*axZ*(1-np.cos(angle)) + axY*np.sin(angle)],
                       [axX*axY*(1-np.cos(angle)) + axZ*np.sin(angle), np.cos(angle) + axY*axY*(1-np.cos(angle)), axY*axZ*(1-np.cos(angle))-axX*np.sin(angle)],
@@ -184,6 +272,7 @@ def arbitraryAxisRotation(axX, axY, axZ, vecX, vecY, vecZ, angle):
             vecX * rotationMatrix[1][0] + vecY * rotationMatrix[1][1] + vecZ * rotationMatrix[1][2],
             vecX * rotationMatrix[2][0] + vecY * rotationMatrix[2][1] + vecZ * rotationMatrix[2][2]])
 
+@jit
 def MAGNITUDE(vec):
     return np.sqrt(vec.dot(vec))
 
@@ -239,3 +328,6 @@ def PLOT_ANIMATION(dCellList, tCellsX, tCellsY, tCellsZ, arrivalTimes, save=Fals
         ani.save('animation.gif', writer='imagemagick', fps=30)
 
     plt.show()
+
+def HAS_CONTACTED_DC(tCellNum, dCellNum, tCellList):
+    return tCellList[tCellNum].failed_interaction_ID==dCellNum
